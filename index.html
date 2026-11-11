@@ -1,0 +1,1076 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Mash to grow a civilization under three suns, then watch real three-body physics doom it anyway.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box;height:100%}body{margin:0}</style>
+</head>
+<body>
+<title>Three-Body: Doomed Anyway</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: one portrait column, like a variety-show screen. Sky on top, meters, then two fat buttons. */
+:root {
+  color-scheme: dark;
+  --space: #0e0b1c;
+  --panel: #1a1530;
+  --panel-2: #241d42;
+  --ink: #f4effd;
+  --muted: #a99fc6;
+  --outline: #07040f;
+  --sun: #ffd84a;
+  --hot: #ff5232;
+  --cold: #5fdcff;
+  --ok: #86e36b;
+  --paper: #e3cc96;
+  --font-display: "Luckiest Guy", Impact, "Arial Black", sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--space);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+
+#app {
+  height: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-rows: auto 1fr auto auto auto;
+  gap: 10px;
+  padding-block: 10px 12px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  box-sizing: border-box;
+}
+
+/* HUD */
+.hud { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.hud .civ { font-family: var(--font-display); font-size: 22px; letter-spacing: 0.03em; white-space: nowrap; padding-top: 3px; }
+.hud .civ span { color: var(--sun); }
+.hud .info { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.hud .stage-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud .year { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.icon-btn {
+  background: var(--panel-2); border: 2px solid var(--outline); border-radius: 10px;
+  min-width: 40px; height: 40px; padding: 0 10px; font-size: 14px; font-weight: 700;
+  box-shadow: 0 3px 0 var(--outline);
+}
+.icon-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--outline); }
+
+/* Sky */
+.sky-wrap {
+  position: relative; min-height: 0;
+  border: 3px solid var(--outline); border-radius: 18px; overflow: hidden;
+  background: var(--space);
+  box-shadow: 0 4px 0 var(--outline);
+}
+#sky { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#eraTag {
+  position: absolute; top: 10px; left: 10px;
+  font-family: var(--font-display); font-size: 16px; letter-spacing: 0.04em;
+  padding: 6px 12px 3px; border-radius: 999px; border: 2px solid var(--outline);
+  background: var(--ok); color: var(--outline);
+}
+#eraTag.hot { background: var(--hot); color: var(--ink); }
+#eraTag.cold { background: var(--cold); }
+#eraTag.danger { animation: blink 0.45s steps(2) infinite; background: var(--ink); color: var(--hot); }
+@keyframes blink { 50% { opacity: 0.35; } }
+#launchBtn {
+  position: absolute; top: 10px; right: 10px;
+  font-family: var(--font-display); font-size: 16px; letter-spacing: 0.03em;
+  background: var(--sun); color: var(--outline);
+  border: 2px solid var(--outline); border-radius: 12px; padding: 8px 12px 5px;
+  box-shadow: 0 3px 0 var(--outline);
+  animation: wobble 0.9s ease-in-out infinite;
+}
+@keyframes wobble { 50% { transform: rotate(-4deg) scale(1.06); } }
+
+/* Variety-show caption: thick outline, yellow fill */
+#caption {
+  position: absolute; left: 12px; right: 12px; bottom: 14px;
+  text-align: center; pointer-events: none;
+  font-family: var(--font-display); font-size: clamp(18px, 5vw, 26px); line-height: 1.2; letter-spacing: 0.02em;
+  text-wrap: balance;
+  color: var(--sun);
+  -webkit-text-stroke: 6px var(--outline); paint-order: stroke fill;
+  text-shadow: 3px 4px 0 var(--outline);
+  opacity: 0;
+}
+#caption.show { animation: pop 2.6s ease-out forwards; }
+#caption.red { color: var(--hot); }
+#caption.cyan { color: var(--cold); }
+#caption.green { color: var(--ok); }
+#caption.white { color: var(--ink); }
+@keyframes pop {
+  0% { opacity: 0; transform: scale(0.4) rotate(-6deg); }
+  10% { opacity: 1; transform: scale(1.12) rotate(2deg); }
+  18% { transform: scale(1) rotate(-1deg); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+
+/* Meters */
+.meters { display: grid; gap: 8px; }
+.meter { display: grid; grid-template-columns: 50px 1fr 68px; align-items: center; gap: 8px; }
+.meter .lbl { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.meter .val { font-size: 13px; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar { position: relative; height: 16px; border-radius: 8px; background: var(--panel); border: 2px solid var(--outline); overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; width: 50%; border-radius: 6px; transition: width 0.12s linear; }
+#popFill { background: var(--ok); }
+#techFill { background: var(--sun); }
+.thermo {
+  background: linear-gradient(90deg,
+    #2a5d8f 0%, var(--cold) var(--xc), var(--cold) var(--lo), var(--ok) var(--lo), var(--ok) var(--hi),
+    var(--hot) var(--hi), var(--hot) var(--xh), #7a1408 var(--xh), #7a1408 100%);
+}
+.thermo .zone-x {
+  position: absolute; top: 0; bottom: 0;
+  background: repeating-linear-gradient(135deg, rgba(7,4,15,0.55) 0 4px, transparent 4px 8px);
+}
+#thermoMark {
+  position: absolute; top: -3px; bottom: -3px; width: 6px; margin-left: -3px; left: 50%;
+  background: var(--ink); border: 2px solid var(--outline); border-radius: 3px;
+}
+
+.scholar {
+  display: flex; gap: 10px; align-items: flex-start;
+  background: var(--panel); border: 2px solid var(--outline); border-radius: 14px;
+  padding: 8px 12px; min-height: 44px; box-sizing: border-box;
+  font-size: 13.5px; line-height: 1.45;
+}
+.scholar .face { font-size: 22px; line-height: 1; padding-top: 2px; }
+.scholar .txt { min-width: 0; }
+.scholar b { color: var(--sun); }
+.scholar .verdict-bad { color: var(--hot); font-weight: 700; }
+.scholar .verdict-good { color: var(--ok); font-weight: 700; }
+
+/* Controls */
+.controls { display: grid; grid-template-columns: 1fr 0.7fr; gap: 10px; }
+.big-btn {
+  border: 3px solid var(--outline); border-radius: 18px;
+  padding: 12px 10px 10px; min-height: 76px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  box-shadow: 0 6px 0 var(--outline);
+  transition: transform 0.04s, box-shadow 0.04s;
+}
+.big-btn .main { font-family: var(--font-display); font-size: 22px; line-height: 1.1; letter-spacing: 0.03em; padding-top: 3px; white-space: nowrap; }
+.big-btn .sub { font-size: 11.5px; font-weight: 700; opacity: 0.75; letter-spacing: 0.04em; }
+.big-btn.pressed, .big-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--outline); }
+#tapBtn { background: var(--sun); color: var(--outline); }
+#tapBtn.water { background: var(--cold); }
+#dryBtn { background: var(--paper); color: var(--outline); }
+#dryBtn:disabled { background: var(--panel-2); color: var(--muted); cursor: default; }
+
+/* Overlays */
+.overlay {
+  position: fixed; inset: 0; z-index: 20;
+  display: grid; place-items: center;
+  background: rgba(14, 11, 28, 0.82);
+  padding-block: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  overflow-y: auto;
+}
+.card {
+  width: 100%; max-width: 440px; box-sizing: border-box;
+  background: var(--panel); border: 3px solid var(--outline); border-radius: 22px;
+  box-shadow: 0 8px 0 var(--outline);
+  padding: 22px 20px 20px;
+  display: flex; flex-direction: column; gap: 14px;
+}
+.card.tilt { transform: rotate(-1.2deg); }
+.card h1, .card h2 {
+  margin: 0; font-family: var(--font-display); font-weight: 400; line-height: 1.05; letter-spacing: 0.02em; text-wrap: balance;
+  -webkit-text-stroke: 6px var(--outline); paint-order: stroke fill; text-shadow: 3px 4px 0 var(--outline);
+}
+.card h1 { font-size: clamp(40px, 12vw, 58px); color: var(--sun); }
+.card h1 small { display: block; font-size: 0.48em; color: var(--ink); margin-top: 6px; }
+.card h2 { font-size: 32px; color: var(--hot); }
+.card h2.sunny { color: var(--sun); }
+.card p { margin: 0; line-height: 1.6; color: var(--ink); }
+.card .muted { color: var(--muted); font-size: 13.5px; }
+.card ul { margin: 0; padding-left: 20px; line-height: 1.65; }
+.card li b { color: var(--sun); }
+.kbd { font-size: 12px; border: 1.5px solid var(--muted); border-radius: 5px; padding: 0 5px; color: var(--muted); white-space: nowrap; }
+.cause {
+  font-size: 17px; font-weight: 700; line-height: 1.55;
+  background: var(--panel-2); border-radius: 12px; padding: 12px 14px;
+}
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stats div { background: var(--space); border-radius: 12px; padding: 10px 6px; text-align: center; min-width: 0; }
+.stats .k { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.stats .v { font-family: var(--font-display); font-size: 19px; margin-top: 4px; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.rank { text-align: center; font-weight: 700; }
+.rank span { color: var(--sun); }
+.btn-row { display: flex; flex-direction: column; gap: 10px; }
+.cta {
+  font-family: var(--font-display); font-size: 20px; letter-spacing: 0.03em;
+  background: var(--sun); color: var(--outline);
+  border: 3px solid var(--outline); border-radius: 14px; padding: 13px 14px 9px;
+  box-shadow: 0 5px 0 var(--outline);
+}
+.cta:active { transform: translateY(3px); box-shadow: 0 2px 0 var(--outline); }
+.cta.ghost { background: var(--panel-2); color: var(--ink); font-size: 17px; }
+.archive-list { list-style: none; padding: 0; margin: 0; max-height: 38vh; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+.archive-list li { display: grid; grid-template-columns: 52px 1fr; gap: 8px; background: var(--space); border-radius: 10px; padding: 8px 10px; font-size: 13px; line-height: 1.45; }
+.archive-list .no { font-family: var(--font-display); color: var(--sun); font-size: 16px; letter-spacing: 0.02em; }
+.archive-list .d { color: var(--muted); }
+.sch-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sch-table td { padding: 4px 2px; border-bottom: 1px solid var(--panel-2); }
+.sch-table td:last-child { text-align: right; color: var(--hot); font-weight: 700; }
+.empty { color: var(--muted); font-size: 13px; text-align: center; padding: 10px 0; }
+
+@media (max-height: 640px) {
+  .big-btn { min-height: 62px; padding: 8px 8px 6px; }
+  .big-btn .main { font-size: 19px; }
+  .scholar { font-size: 12.5px; padding: 6px 10px; }
+  #app { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #caption.show { animation: fade 2.6s linear forwards; }
+  #launchBtn, #eraTag.danger { animation: none; }
+  @keyframes fade { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
+}
+</style>
+
+<div id="app">
+  <header class="hud">
+    <div class="civ">CIV <span id="civNo">#1</span></div>
+    <div class="info">
+      <div class="stage-name" id="stageName">🪨 Stone Age</div>
+      <div class="year" id="yearVal">Trisolar Year 0</div>
+    </div>
+    <button class="icon-btn" id="archiveBtn" aria-label="Archive of Collapses">📜 Log</button>
+    <button class="icon-btn" id="muteBtn" aria-label="Toggle sound">🔊</button>
+  </header>
+
+  <div class="sky-wrap" id="skyWrap">
+    <canvas id="sky"></canvas>
+    <div id="eraTag">Stable Era</div>
+    <button id="launchBtn" hidden>🚀 Launch escape ship</button>
+    <div id="caption"></div>
+  </div>
+
+  <div class="meters">
+    <div class="meter">
+      <div class="lbl">Temp</div>
+      <div class="bar thermo" id="thermo">
+        <div class="zone-x" id="zoneCold"></div>
+        <div class="zone-x" id="zoneHot"></div>
+        <div id="thermoMark"></div>
+      </div>
+      <div class="val" id="tempVal">Comfy</div>
+    </div>
+    <div class="meter">
+      <div class="lbl">Pop</div>
+      <div class="bar"><div class="fill" id="popFill"></div></div>
+      <div class="val" id="popVal">100%</div>
+    </div>
+    <div class="meter">
+      <div class="lbl">Tech</div>
+      <div class="bar"><div class="fill" id="techFill"></div></div>
+      <div class="val" id="techVal">0%</div>
+    </div>
+  </div>
+
+  <div class="scholar" id="scholar">
+    <div class="face" id="schFace">🧓</div>
+    <div class="txt" id="schTxt">The scholars are staring at the sky.</div>
+  </div>
+
+  <div class="controls">
+    <button class="big-btn" id="tapBtn">
+      <span class="main" id="tapMain">🔨 Advance</span>
+      <span class="sub" id="tapSub">MASH IT!! · Space</span>
+    </button>
+    <button class="big-btn" id="dryBtn">
+      <span class="main" id="dryMain">📜 Dehydrate</span>
+      <span class="sub" id="drySub">Dry out &amp; wait · D</span>
+    </button>
+  </div>
+</div>
+
+<!-- Title -->
+<div class="overlay" id="titleScreen">
+  <div class="card tilt">
+    <h1>Three-Body<small>Doomed Anyway</small></h1>
+    <p>Grow a civilization on a planet with three suns. Work hard and you'll make it. <span class="muted">(You won't.)</span></p>
+    <ul>
+      <li><b>Mash</b> the button to advance your civilization. <span class="kbd">Space</span></li>
+      <li>When the weather goes insane, <b>dehydrate</b> your people and store them flat like paper. <span class="kbd">D</span></li>
+      <li>To wake them up, you have to <b>pour water</b> on them. That's also mashing.</li>
+      <li>Reach the Space Age and you can escape this planet. <span class="muted">(Probably.)</span></li>
+    </ul>
+    <p class="muted" id="titleStats">The three suns run on a real physics simulation. That's exactly why nobody can predict them.</p>
+    <div class="btn-row">
+      <button class="cta" id="startBtn">Start Civilization #1</button>
+    </div>
+  </div>
+</div>
+
+<!-- Death -->
+<div class="overlay" id="deathScreen" hidden>
+  <div class="card tilt">
+    <h2 id="deathTitle">Civilization #1 has fallen</h2>
+    <div class="cause" id="deathCause"></div>
+    <div class="stats">
+      <div><div class="k">Survived</div><div class="v" id="dYears">0 yrs</div></div>
+      <div><div class="k">Reached</div><div class="v" id="dStage">Stone</div></div>
+      <div><div class="k">Taps</div><div class="v" id="dTaps">0</div></div>
+    </div>
+    <p class="rank" id="dRank"></p>
+    <p class="muted" id="dBest"></p>
+    <div class="btn-row">
+      <button class="cta" id="nextBtn">Start Civilization #2 (doomed anyway)</button>
+      <button class="cta ghost" id="deathArchiveBtn">📜 Archive of Collapses</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ending -->
+<div class="overlay" id="endingScreen" hidden>
+  <div class="card">
+    <h2 class="sunny" id="endTitle">Moment of Truth</h2>
+    <div id="endBody"></div>
+    <div class="btn-row">
+      <button class="cta" id="endBtn">Keep going anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- Archive -->
+<div class="overlay" id="archiveScreen" hidden>
+  <div class="card">
+    <h2 class="sunny">Archive of Collapses</h2>
+    <div class="stats">
+      <div><div class="k">Collapsed</div><div class="v" id="aCount">0</div></div>
+      <div><div class="k">Total taps</div><div class="v" id="aTaps">0</div></div>
+      <div><div class="k">Longest run</div><div class="v" id="aBest">-</div></div>
+    </div>
+    <ul class="archive-list" id="aList"></ul>
+    <div>
+      <p class="muted" style="margin-bottom:6px">Scholar prediction accuracy</p>
+      <table class="sch-table" id="aSch"></table>
+    </div>
+    <div class="btn-row">
+      <button class="cta" id="archiveClose">Close</button>
+      <button class="cta ghost" id="resetBtn">Erase all records</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- Tuning ----------
+  const LO = 1.0, HI = 2.05;          // comfortable band (log brightness)
+  const XC = 0.5, XH = 2.8;           // beyond these, even dehydration doesn't help
+  const T_MIN = 0.2, T_MAX = 3.1;     // thermometer range
+  const EPS = 0.12, K = 0.6, H = 0.002;
+  const SIM_SPEED = 0.3, YEARS_PER_SEC = 5;
+  const REHYDRATE_TAPS = 6, JERKY_SEC = 25;
+
+  const STAGES = [
+    { at: 0,   name: 'Stone Age',     icon: '🪨', short: 'Stone' },
+    { at: 25,  name: 'Bronze Age',    icon: '🔔', short: 'Bronze', line: 'Bronze mirrors invented! With three suns they mostly just blind people' },
+    { at: 60,  name: 'Iron Age',      icon: '⚔️', short: 'Iron', line: 'You learned to smelt iron. Honestly, the suns do it for free' },
+    { at: 110, name: 'Age of Sail',   icon: '⛵', short: 'Sail', line: 'Ships built! The ocean boils too often to actually use them' },
+    { at: 175, name: 'Steam Age',     icon: '🚂', short: 'Steam', line: 'Steam engine invented! The suns were already great at boiling water' },
+    { at: 255, name: 'Electric Age',  icon: '💡', short: 'Electric', line: 'Electricity! Solar efficiency 300%. Power plants melt sometimes' },
+    { at: 350, name: 'Computer Age',  icon: '💻', short: 'Computer', line: 'Qin Shi Huang built a computer out of 30 million soldiers. One fell asleep. The answer was wrong' },
+    { at: 460, name: 'Space Age',     icon: '🚀', short: 'Space', line: 'SPACE AGE!! You can finally leave this planet (probably)' },
+  ];
+
+  const SCHOLARS = [
+    { name: 'King Wen of Zhou', face: '👑', say: 'I have read the mood of the suns. The next {y} years will be a {era}.' },
+    { name: 'Mozi', face: '🧔', say: 'The sun is just a ball of fire. My math says: a {era} for {y} years!' },
+    { name: 'Confucius', face: '🧓', say: 'The wise man does not blame the sun. Anyway, a {era} for {y} years.' },
+    { name: 'Newton', face: '🍎', say: 'According to my calculus, a {era} for {y} years. I swear on my apple.' },
+    { name: 'Copernicus', face: '🔭', say: 'The sun is the center... wait, why are there three? Anyway, a {era} for {y} years.' },
+    { name: 'Einstein', face: '👅', say: 'God does not play dice. Therefore: a {era} for {y} years.' },
+    { name: 'Qin Shi Huang', face: '🐉', say: 'By imperial decree, the suns shall observe a {era} for {y} years.' },
+    { name: 'Madame Kim, Fortune Teller', face: '🔮', say: "That'll be ten bucks. A {era} for {y} years. No refunds." },
+    { name: 'Claude', face: '🤖', say: "I'm not certain, but there may be a {era} for the next {y} years. This prediction could be wrong." },
+  ];
+
+  const DEATH = {
+    hot: [
+      'Three suns rose at once and the entire population was roasted to a golden crisp. Reportedly it smelled great.',
+      'It hit 400 degrees. The national holiday was renamed "Everybody Sauna Day" shortly before the end.',
+      'Your people got cooked while looking for the Dehydrate button. It was right next to the other button.',
+    ],
+    cold: [
+      'A night of flying stars arrived and everyone turned into ice cream. Mint chocolate flavor.',
+      'They huddled together for warmth and froze exactly like that. A heartwarming ending, technically.',
+      'Minus 200 degrees. Your people tried to start a fire with their breath. It did not work.',
+    ],
+    xhot: [
+      'Tri-Solar Day! All three suns filled the sky at once. Dehydrated or not, the atmosphere evaporated.',
+      'One sun came way too close. Turns out dehydrated people make excellent kindling.',
+    ],
+    xcold: [
+      'All three suns wandered off. The whole planet became one giant freezer.',
+      'Only stars are left in the sky. Your dehydrated people are now freeze-dried snacks.',
+    ],
+    jerky: [
+      'You left them dried out too long. The entire population is now beef jerky. Teriyaki flavor.',
+      'After 25 seconds of drying, your people never puffed back up. They make a great bar snack.',
+    ],
+    space: [
+      'Escape ship launched! ...Someone filled the fuel tank with dehydrated citizens.',
+      'Launch successful! Three seconds later it flew straight into the third sun.',
+      'Right before launch someone asked, "Did you leave the stove on?" While they went back to check, the suns rose.',
+      'You sent a signal to Earth. The reply: "Do not answer. Do not answer. Do not answer." Your people were too hurt to ever get up again.',
+      'After 450 years in space you arrived at... the planet you left. Someone set the GPS wrong.',
+    ],
+  };
+  const GAGS = [
+    '{x}% of your dried citizens blew away and got delivered to another continent',
+    'The warehouse guy mistook {x}% of your dried citizens for firewood',
+    'A goat wandered into the warehouse and ate {x}% of your dried citizens',
+    'Someone put {x}% of your dried citizens out with the recycling',
+    'Monsoon season! {x}% of your dried citizens grew mold',
+    'The origami club folded {x}% of your dried citizens into paper cranes',
+    '{x}% of your dried citizens are being used as coasters',
+  ];
+  const CAUSE_LABEL = {
+    hot: 'Roasted crispy', cold: 'Frozen solid', xhot: 'Vaporized on Tri-Solar Day', xcold: 'Frozen under flying stars',
+    jerky: 'Turned into jerky', gag: 'Accident while dried', space: 'Escape failed',
+  };
+  const RANKS = [
+    [100, 'Baby Pathetic'], [300, 'Casually Pathetic'], [800, 'Seasoned Pathetic'], [2000, 'Pro Pathetic'], [Infinity, 'Legendary Pathetic'],
+  ];
+  const ENDINGS = [5, 20, 50, 100];
+
+  const pick = a => a[Math.floor(Math.random() * a.length)];
+  const $ = id => document.getElementById(id);
+  const fmt = n => Math.floor(n).toLocaleString('en-US');
+
+  // ---------- Saved records (per browser) ----------
+  const SKEY = 'samche-doomed-v1';
+  function freshMeta() { return { civs: [], count: 0, totalTaps: 0, scholars: {}, endings: [], muted: false }; }
+  function loadMeta() {
+    try { const r = JSON.parse(localStorage.getItem(SKEY)); if (r && Array.isArray(r.civs)) return Object.assign(freshMeta(), r); } catch (e) {}
+    return freshMeta();
+  }
+  function saveMeta() { try { localStorage.setItem(SKEY, JSON.stringify(meta)); } catch (e) {} }
+  let meta = loadMeta();
+
+  // ---------- Three-body sky ----------
+  // Three suns, real Newtonian gravity (softened), plus a gentle pull toward the planet so they stay on screen.
+  const SUN_COLORS = ['#ffd84a', '#ff9a3c', '#fff1c2'];
+  function makeSuns() {
+    const s = [];
+    for (let i = 0; i < 3; i++) {
+      const a = Math.random() * Math.PI * 2, d = 0.7 + Math.random() * 0.9;
+      s.push({ x: Math.cos(a) * d, y: Math.sin(a) * d, vx: 0, vy: 0, m: 0.8 + Math.random() * 0.5, trail: [] });
+    }
+    for (const b of s) {
+      const sp = 0.5 + Math.random() * 0.6, d = Math.hypot(b.x, b.y);
+      b.vx = -b.y / d * sp + (Math.random() - 0.5) * 0.4;
+      b.vy = b.x / d * sp + (Math.random() - 0.5) * 0.4;
+    }
+    return s;
+  }
+  function accel(s, a) {
+    for (let i = 0; i < 3; i++) { a[i].x = -K * s[i].x; a[i].y = -K * s[i].y; }
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== j) {
+      const dx = s[j].x - s[i].x, dy = s[j].y - s[i].y, r2 = dx * dx + dy * dy + EPS * EPS;
+      const f = s[j].m / (r2 * Math.sqrt(r2));
+      a[i].x += dx * f; a[i].y += dy * f;
+    }
+  }
+  const A = [{ x: 0, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 0 }];
+  function step(s, dt) {
+    accel(s, A);
+    for (let i = 0; i < 3; i++) { s[i].vx += A[i].x * dt / 2; s[i].vy += A[i].y * dt / 2; s[i].x += s[i].vx * dt; s[i].y += s[i].vy * dt; }
+    accel(s, A);
+    for (let i = 0; i < 3; i++) { s[i].vx += A[i].x * dt / 2; s[i].vy += A[i].y * dt / 2; }
+  }
+  function brightness(s) { let t = 0; for (const b of s) t += b.m / (b.x * b.x + b.y * b.y + 0.08); return Math.log(t); }
+  function cloneSuns(s) { return s.map(b => ({ x: b.x, y: b.y, vx: b.vx, vy: b.vy, m: b.m })); }
+  function safeSky() {
+    let s;
+    for (let tries = 0; tries < 40; tries++) {
+      s = makeSuns();
+      const c = cloneSuns(s); let ok = true;
+      for (let k = 0; k < 450 && ok; k++) {
+        step(c, H);
+        if (k % 10 === 0) { const t = brightness(c); if (t < LO + 0.1 || t > HI - 0.1) ok = false; }
+      }
+      if (ok) break;
+    }
+    return s;
+  }
+  // Fraction of the next `sec` real seconds that will be comfortable. Scholars peek at this to be wrong on purpose.
+  function peekFuture(sec) {
+    const c = cloneSuns(suns); let e = temp, ok = 0, n = 0;
+    const total = Math.ceil(sec * SIM_SPEED / H);
+    for (let k = 0; k < total; k++) {
+      step(c, H);
+      if (k % 10 === 0) { e += (brightness(c) - e) * Math.min(1, 10 * H / 0.3); n++; if (e > LO && e < HI) ok++; }
+    }
+    return ok / Math.max(1, n);
+  }
+
+  // ---------- Sound ----------
+  let actx = null;
+  function audio() {
+    if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (actx.state === 'suspended') actx.resume();
+    return actx;
+  }
+  function tone(f, d, o = {}) {
+    if (meta.muted) return;
+    const a = audio(); if (!a) return;
+    const osc = a.createOscillator(), g = a.createGain(), t = a.currentTime + (o.at || 0);
+    osc.type = o.type || 'square';
+    osc.frequency.setValueAtTime(f, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + d);
+    g.gain.setValueAtTime(o.vol || 0.04, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    osc.connect(g).connect(a.destination);
+    osc.start(t); osc.stop(t + d + 0.02);
+  }
+  const sfx = {
+    tap(c) { tone(220 + Math.min(c, 40) * 12, 0.06, { vol: 0.03 }); },
+    water(k) { tone(500 + k * 80, 0.08, { type: 'sine', vol: 0.06, to: 900 + k * 80 }); },
+    dry() { tone(900, 0.35, { type: 'sawtooth', vol: 0.03, to: 120 }); },
+    level() { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.12, { at: i * 0.08, vol: 0.04 })); },
+    ding() { tone(1320, 0.18, { type: 'triangle', vol: 0.05 }); },
+    bad() { tone(160, 0.25, { type: 'sawtooth', vol: 0.04, to: 90 }); },
+    sad() { // the sad trombone
+      [[392, 0], [370, 0.42], [349, 0.84]].forEach(([f, at]) => tone(f, 0.38, { type: 'sawtooth', vol: 0.05, at, to: f * 0.97 }));
+      tone(330, 1.1, { type: 'sawtooth', vol: 0.05, at: 1.26, to: 290 });
+    },
+  };
+
+  // ---------- Game state ----------
+  let mode = 'title';                 // title | play | launching | dead
+  let suns = makeSuns();
+  let temp = brightness(suns);
+  let civ = null;
+  let zone = 'ok', lastZoneCaption = -10, nearWarned = false;
+  let scholar = null, scholarWait = 5;
+  let combo = 0, lastTapAt = 0, clock = 0;
+  let shake = 0, floats = [];
+  let pendingEnding = null;
+
+  function newCiv() {
+    return { n: meta.count + 1, stage: 0, prog: 0, pop: 100, dry: false, dryTime: 0, rehyd: 0, years: 0, taps: 0 };
+  }
+
+  function startCiv() {
+    audio();
+    suns = safeSky(); temp = brightness(suns);
+    civ = newCiv();
+    zone = 'ok'; nearWarned = false; lastZoneCaption = -10;
+    scholar = null; scholarWait = 4 + Math.random() * 3;
+    combo = 0; floats = [];
+    $('launchBtn').hidden = true;
+    for (const id of ['titleScreen', 'deathScreen', 'endingScreen', 'archiveScreen']) $(id).hidden = true;
+    setScholarIdle();
+    mode = 'play';
+    caption(civ.n === 1 ? 'Civilization #1 is born! Work hard and you will make it' : `Civilization #${civ.n} is born! This time will be different (it won't)`, 'white');
+    renderHud();
+  }
+
+  function zoneOf(e) {
+    if (e > XH) return 'xhot';
+    if (e < XC) return 'xcold';
+    if (e > HI) return 'hot';
+    if (e < LO) return 'cold';
+    return 'ok';
+  }
+
+  function update(dt) {
+    if (mode === 'play' && !$('archiveScreen').hidden) return; // paused while reading the archive
+    clock += dt;
+    // advance the suns
+    const simDt = dt * SIM_SPEED, n = Math.max(1, Math.ceil(simDt / H)), h = simDt / n;
+    for (let i = 0; i < n; i++) step(suns, h);
+    temp += (brightness(suns) - temp) * Math.min(1, simDt / 0.3);
+    if (mode !== 'play') return;
+
+    civ.years += dt * YEARS_PER_SEC;
+    const z = zoneOf(temp);
+
+    if (z === 'xhot' || z === 'xcold') return die(z);
+
+    if (z !== zone) {
+      if (clock - lastZoneCaption > 1.2) {
+        if (z === 'hot') { caption('🔥 Chaotic Era! WAY too hot!!', 'red'); sfx.bad(); }
+        else if (z === 'cold') { caption('🧊 Chaotic Era! WAY too cold!!', 'cyan'); sfx.bad(); }
+        else caption('🌤 Stable Era... probably?', 'green');
+        lastZoneCaption = clock;
+      }
+      zone = z;
+    }
+    const near = temp > XH - 0.18 || temp < XC + 0.14;
+    if (near && !nearWarned) { caption('⚠ Something feels very wrong', 'red'); nearWarned = true; }
+    if (!near && temp > XC + 0.3 && temp < XH - 0.3) nearWarned = false;
+
+    if (!civ.dry) {
+      if (z === 'hot' || z === 'cold') {
+        const d = z === 'hot' ? (temp - HI) / (XH - HI) : (LO - temp) / (LO - XC);
+        civ.pop -= (6 + 35 * d) * dt;
+        if (civ.pop <= 0) return die(z);
+      } else {
+        civ.pop = Math.min(100, civ.pop + 3 * dt);
+      }
+    } else {
+      civ.dryTime += dt;
+      if (civ.dryTime > JERKY_SEC) return die('jerky');
+      if (civ.dryTime > 2 && Math.random() < 0.06 * dt) {
+        const x = 15 + Math.floor(Math.random() * 21);
+        const msg = pick(GAGS).replace('{x}', x);
+        civ.pop -= x;
+        if (civ.pop <= 0) return die('gag', msg + '. That was the last citizen.');
+        caption(msg, 'white'); sfx.bad();
+      }
+    }
+
+    updateScholar(dt, z);
+  }
+
+  // ---------- Scholars ----------
+  function setScholarIdle() {
+    $('schFace').textContent = '🧓';
+    $('schTxt').textContent = 'The scholars are staring at the sky and muttering.';
+  }
+  function updateScholar(dt, z) {
+    if (!scholar) {
+      scholarWait -= dt;
+      if (scholarWait > 0) return;
+      const who = pick(SCHOLARS), dur = 8 + Math.random() * 6;
+      const futureOk = peekFuture(dur) >= 0.5;
+      const saysOk = Math.random() < 0.8 ? !futureOk : futureOk; // wrong on purpose, 80% of the time
+      scholar = { who, dur, t: 0, okTime: 0, saysOk };
+      const era = saysOk ? '<b>Stable Era</b>' : '<b>Chaotic Era</b>';
+      $('schFace').textContent = who.face;
+      $('schTxt').innerHTML = `<b>${who.name}</b>: ${who.say.replace('{y}', Math.round(dur * YEARS_PER_SEC)).replace('{era}', era)}`;
+      sfx.ding();
+      return;
+    }
+    scholar.t += dt;
+    if (z === 'ok') scholar.okTime += dt;
+    if (scholar.t >= scholar.dur) {
+      const wasOk = scholar.okTime / scholar.dur >= 0.5;
+      const hit = wasOk === scholar.saysOk;
+      const rec = meta.scholars[scholar.who.name] || (meta.scholars[scholar.who.name] = { hit: 0, total: 0 });
+      rec.total++; if (hit) rec.hit++;
+      const rate = Math.round(rec.hit / rec.total * 100);
+      $('schTxt').innerHTML = `<b>${scholar.who.name}</b>'s prophecy: ` + (hit
+        ? `<span class="verdict-good">Correct?!</span> Even a broken clock is right twice a day. (${rate}% accuracy)`
+        : `<span class="verdict-bad">Wrong.</span> They insist it was "open to interpretation." (${rate}% accuracy)`);
+      scholar = null; scholarWait = 7 + Math.random() * 7;
+    }
+  }
+
+  // ---------- Player actions ----------
+  function tap() {
+    if (mode !== 'play') return;
+    const now = performance.now();
+    combo = now - lastTapAt < 320 ? combo + 1 : 1;
+    lastTapAt = now;
+    meta.totalTaps++; civ.taps++;
+    press($('tapBtn'));
+
+    if (civ.dry) {
+      civ.rehyd++;
+      sfx.water(civ.rehyd);
+      addFloat('💧');
+      if (civ.rehyd >= REHYDRATE_TAPS) {
+        civ.dry = false; civ.dryTime = 0; civ.rehyd = 0;
+        caption('Revived! Your people are moist again', 'cyan');
+      }
+      renderHud();
+      return;
+    }
+
+    civ.prog += 0.3 + 0.7 * civ.pop / 100;
+    sfx.tap(combo);
+    addFloat('+1');
+    shake = Math.min(8, shake + 2.5);
+    if (combo > 0 && combo % 30 === 0) caption(`${combo} COMBO!! Are your fingers okay?`, 'yellow');
+
+    while (civ.stage < STAGES.length - 1 && civ.prog >= STAGES[civ.stage + 1].at) {
+      civ.stage++;
+      caption(STAGES[civ.stage].line, 'yellow');
+      sfx.level();
+      if (civ.stage === STAGES.length - 1) $('launchBtn').hidden = false;
+    }
+    renderHud();
+  }
+
+  function dehydrate() {
+    if (mode !== 'play' || civ.dry) return;
+    civ.dry = true; civ.dryTime = 0; civ.rehyd = 0;
+    sfx.dry();
+    caption('Everyone is dehydrated. Nice and crispy.', 'yellow');
+    renderHud();
+  }
+
+  function launch() {
+    if (mode !== 'play') return;
+    mode = 'launching';
+    $('launchBtn').hidden = true;
+    caption('🚀 Escape ship launched!! FINALLY!!', 'yellow');
+    sfx.level();
+    setTimeout(() => die('space'), 1800);
+  }
+
+  function die(cause, msg) {
+    if (mode === 'dead') return;
+    mode = 'dead';
+    civ.cause = cause;
+    meta.count++;
+    meta.civs.push({ n: civ.n, stage: civ.stage, years: Math.floor(civ.years), taps: civ.taps, cause });
+    if (meta.civs.length > 200) meta.civs.shift();
+    const due = ENDINGS.find(k => meta.count >= k && !meta.endings.includes(k));
+    if (due) { meta.endings.push(due); pendingEnding = due; }
+    saveMeta();
+    sfx.sad();
+    shake = 14;
+    renderHud();
+
+    const s = STAGES[civ.stage];
+    $('deathTitle').textContent = `Civilization #${civ.n} has fallen`;
+    $('deathCause').textContent = msg || pick(DEATH[cause]);
+    $('dYears').textContent = fmt(civ.years) + ' yrs';
+    $('dStage').textContent = s.short;
+    $('dTaps').textContent = fmt(civ.taps);
+    const rank = RANKS.find(([lim]) => meta.totalTaps < lim)[1];
+    $('dRank').innerHTML = `Lifetime taps: ${fmt(meta.totalTaps)} · Rank: <span>${rank}</span>`;
+    const best = bestCiv();
+    $('dBest').textContent = best ? `Longest run: Civilization #${best.n}, ${fmt(best.years)} years (${STAGES[best.stage].name})` : '';
+    $('nextBtn').textContent = pendingEnding ? '...wait, we need to talk' : `Start Civilization #${meta.count + 1} (doomed anyway)`;
+    setTimeout(() => { if (mode === 'dead') $('deathScreen').hidden = false; }, 1100);
+  }
+
+  function bestCiv() {
+    let b = null;
+    for (const c of meta.civs) if (!b || c.years > b.years) b = c;
+    return b;
+  }
+
+  function showEnding(k) {
+    const taps = fmt(meta.totalTaps);
+    const bodies = {
+      5: ['Moment of Truth', `
+        <p>You've already destroyed five civilizations. It's time you knew.</p>
+        <p><b>The three-body problem has no general closed-form solution.</b> Bruns showed it in 1887, and Poincaré in 1890. The motion of three suns is fundamentally unpredictable.</p>
+        <p>In other words, <b>this game was unwinnable from the start.</b> You tapped the screen <b>${taps} times</b> without knowing that.</p>
+        <p class="muted">Also, the scholars peeked at the future and lied on purpose 80% of the time.</p>`],
+      20: ['Still Playing?', `
+        <p>20 civilizations. <b>${taps}</b> lifetime taps.</p>
+        <p>You could have read a few chapters of <i>The Three-Body Problem</i> by now. But if you insist, we won't stop you.</p>`],
+      50: ['Honorary Trisolaran', `
+        <p>50 civilizations destroyed. You no longer feel anything when the world ends.</p>
+        <p>Congratulations, you are a true Trisolaran. Next goal: commuting to work dehydrated.</p>`],
+      100: ['You Are the Fourth Sun', `
+        <p>100 civilizations. <b>${taps}</b> lifetime taps.</p>
+        <p>At this point it isn't the suns destroying civilizations. It's you.</p>`],
+    };
+    const [t, b] = bodies[k];
+    $('endTitle').textContent = t;
+    $('endBody').innerHTML = b;
+    $('endBody').style.cssText = 'display:flex;flex-direction:column;gap:10px;line-height:1.6';
+    $('deathScreen').hidden = true;
+    $('endingScreen').hidden = false;
+  }
+
+  // ---------- Archive ----------
+  function openArchive() {
+    $('aCount').textContent = fmt(meta.count);
+    $('aTaps').textContent = fmt(meta.totalTaps);
+    const best = bestCiv();
+    $('aBest').textContent = best ? fmt(best.years) + ' yrs' : '-';
+    const list = $('aList');
+    list.innerHTML = '';
+    if (!meta.civs.length) list.innerHTML = '<li class="empty" style="display:block">No civilizations have collapsed yet. Give it a minute.</li>';
+    for (const c of meta.civs.slice().reverse()) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="no">#${c.n}</span><span>${CAUSE_LABEL[c.cause] || c.cause}<br><span class="d">${STAGES[c.stage].name} · survived ${fmt(c.years)} yrs · ${fmt(c.taps)} taps</span></span>`;
+      list.appendChild(li);
+    }
+    const rows = Object.entries(meta.scholars).sort((a, b) => a[1].hit / a[1].total - b[1].hit / b[1].total);
+    $('aSch').innerHTML = rows.length
+      ? rows.map(([n, r]) => `<tr><td>${n}</td><td>${Math.round(r.hit / r.total * 100)}% (${r.hit}/${r.total})</td></tr>`).join('')
+      : '<tr><td class="empty">No scholar has made a prediction yet.</td><td></td></tr>';
+    $('resetBtn').textContent = 'Erase all records';
+    $('resetBtn').dataset.armed = '';
+    $('archiveScreen').hidden = false;
+  }
+
+  // ---------- HUD ----------
+  const pct = v => ((Math.max(T_MIN, Math.min(T_MAX, v)) - T_MIN) / (T_MAX - T_MIN) * 100);
+  (function setupThermo() {
+    const th = $('thermo');
+    th.style.setProperty('--xc', pct(XC) + '%');
+    th.style.setProperty('--lo', pct(LO) + '%');
+    th.style.setProperty('--hi', pct(HI) + '%');
+    th.style.setProperty('--xh', pct(XH) + '%');
+    $('zoneCold').style.cssText = `left:0;width:${pct(XC)}%`;
+    $('zoneHot').style.cssText = `left:${pct(XH)}%;right:0`;
+  })();
+
+  function renderHud() {
+    const z = zoneOf(temp);
+    $('thermoMark').style.left = pct(temp) + '%';
+    $('tempVal').textContent = { ok: 'Comfy', hot: 'Hot', cold: 'Cold', xhot: 'Vaporized', xcold: 'Frozen' }[z];
+    $('tempVal').style.color = z === 'ok' ? 'var(--ok)' : (z === 'hot' || z === 'xhot') ? 'var(--hot)' : 'var(--cold)';
+
+    const tag = $('eraTag');
+    const near = temp > XH - 0.18 || temp < XC + 0.14;
+    tag.className = near ? 'danger' : z === 'ok' ? '' : (z === 'hot' || z === 'xhot') ? 'hot' : 'cold';
+    tag.textContent = near ? '⚠ Dehydrating may not help' : z === 'ok' ? 'Stable Era' : 'Chaotic Era';
+
+    if (!civ) return;
+    $('civNo').textContent = '#' + civ.n;
+    const s = STAGES[civ.stage];
+    $('stageName').textContent = `${s.icon} ${s.name}`;
+    $('yearVal').textContent = `Trisolar Year ${fmt(civ.years)}`;
+    const pop = Math.max(0, civ.pop);
+    $('popFill').style.width = pop + '%';
+    $('popFill').style.background = pop > 50 ? 'var(--ok)' : pop > 25 ? 'var(--sun)' : 'var(--hot)';
+    $('popVal').textContent = Math.ceil(pop) + '%';
+    const next = STAGES[civ.stage + 1];
+    const techPct = next ? (civ.prog - s.at) / (next.at - s.at) * 100 : 100;
+    $('techFill').style.width = Math.min(100, techPct) + '%';
+    $('techVal').textContent = next ? Math.floor(techPct) + '%' : 'MAX';
+
+    const tapBtn = $('tapBtn'), dryBtn = $('dryBtn');
+    if (civ.dry) {
+      tapBtn.classList.add('water');
+      $('tapMain').textContent = `💧 Add water ${civ.rehyd}/${REHYDRATE_TAPS}`;
+      $('tapSub').textContent = 'Mash to wake them · Space';
+      dryBtn.disabled = true;
+      $('dryMain').textContent = `🥓 Dry ${Math.floor(civ.dryTime)}s`;
+      $('drySub').textContent = `Jerky after ${JERKY_SEC}s`;
+    } else {
+      tapBtn.classList.remove('water');
+      $('tapMain').textContent = '🔨 Advance';
+      $('tapSub').textContent = 'MASH IT!! · Space';
+      dryBtn.disabled = mode !== 'play';
+      $('dryMain').textContent = '📜 Dehydrate';
+      $('drySub').textContent = 'Dry out & wait · D';
+    }
+  }
+
+  function caption(text, color) {
+    const el = $('caption');
+    el.className = '';
+    void el.offsetWidth;
+    el.textContent = text;
+    el.className = 'show ' + (color || '');
+  }
+  function press(btn) {
+    btn.classList.add('pressed');
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => btn.classList.remove('pressed'), 70);
+  }
+  function addFloat(text) {
+    floats.push({ x: (Math.random() - 0.5) * 60, y: -24, vy: -60 - Math.random() * 40, life: 0.8, text });
+    if (floats.length > 40) floats.shift();
+  }
+
+  // ---------- Canvas ----------
+  const cv = $('sky'), ctx = cv.getContext('2d');
+  let W = 0, Hh = 0, dpr = 1;
+  const stars = Array.from({ length: 90 }, () => ({ x: Math.random(), y: Math.random(), r: Math.random() * 1.2 + 0.3, a: Math.random() * 0.6 + 0.2 }));
+  function resize() {
+    dpr = Math.min(2, window.devicePixelRatio || 1);
+    const r = cv.getBoundingClientRect();
+    W = Math.max(1, Math.round(r.width * dpr)); Hh = Math.max(1, Math.round(r.height * dpr));
+    cv.width = W; cv.height = Hh;
+  }
+  new ResizeObserver(resize).observe($('skyWrap'));
+  resize();
+
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function draw(dt) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0e0b1c';
+    ctx.fillRect(0, 0, W, Hh);
+
+    // temperature tint
+    const z = zoneOf(temp);
+    const heat = Math.max(0, Math.min(1, (temp - HI) / (XH - HI)));
+    const chill = Math.max(0, Math.min(1, (LO - temp) / (LO - XC)));
+    const cx = W / 2, cy = Hh / 2;
+    const R = Math.max(W, Hh) * 0.75;
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+    if (heat > 0) { g.addColorStop(0, `rgba(255,82,50,${0.15 + heat * 0.45})`); g.addColorStop(1, 'rgba(255,82,50,0)'); }
+    else if (chill > 0) { g.addColorStop(0, `rgba(95,220,255,${0.1 + chill * 0.35})`); g.addColorStop(1, 'rgba(95,220,255,0)'); }
+    else { g.addColorStop(0, 'rgba(134,227,107,0.08)'); g.addColorStop(1, 'rgba(134,227,107,0)'); }
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, Hh);
+
+    shake = Math.max(0, shake - dt * 30);
+    const sx = reducedMotion ? 0 : (Math.random() - 0.5) * shake * dpr;
+    const sy = reducedMotion ? 0 : (Math.random() - 0.5) * shake * dpr;
+    ctx.setTransform(1, 0, 0, 1, sx, sy);
+
+    for (const s of stars) {
+      ctx.fillStyle = `rgba(244,239,253,${s.a * (chill > 0.5 ? 1 : 0.7)})`;
+      ctx.beginPath(); ctx.arc(s.x * W, s.y * Hh, s.r * dpr, 0, 6.283); ctx.fill();
+    }
+
+    const scale = Math.min(W, Hh) / 2 / 2.2;
+
+    // reference rings around the planet
+    ctx.strokeStyle = 'rgba(169,159,198,0.14)';
+    ctx.lineWidth = 1 * dpr;
+    for (const r of [0.7, 1.4, 2.1]) { ctx.beginPath(); ctx.arc(cx, cy, r * scale, 0, 6.283); ctx.stroke(); }
+
+    // trails
+    suns.forEach((b, i) => {
+      b.trail.push(b.x, b.y);
+      if (b.trail.length > 160) b.trail.splice(0, 2);
+      ctx.strokeStyle = SUN_COLORS[i];
+      ctx.lineWidth = 2 * dpr;
+      ctx.globalAlpha = 0.28;
+      ctx.beginPath();
+      for (let k = 0; k < b.trail.length; k += 2) {
+        const px = cx + b.trail[k] * scale, py = cy + b.trail[k + 1] * scale;
+        k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    });
+
+    // suns
+    const pad = 18 * dpr;
+    suns.forEach((b, i) => {
+      let px = cx + b.x * scale, py = cy + b.y * scale;
+      const off = px < pad || px > W - pad || py < pad || py > Hh - pad;
+      if (off) {
+        // pin to the edge with a small marker: a "flying star"
+        const ang = Math.atan2(py - cy, px - cx);
+        px = Math.max(pad, Math.min(W - pad, px)); py = Math.max(pad, Math.min(Hh - pad, py));
+        ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+        ctx.fillStyle = SUN_COLORS[i];
+        ctx.beginPath(); ctx.moveTo(10 * dpr, 0); ctx.lineTo(-6 * dpr, -7 * dpr); ctx.lineTo(-6 * dpr, 7 * dpr); ctx.closePath(); ctx.fill();
+        ctx.restore();
+        return;
+      }
+      const rad = (13 + b.m * 9) * dpr;
+      const glow = ctx.createRadialGradient(px, py, 0, px, py, rad * 3);
+      glow.addColorStop(0, SUN_COLORS[i]);
+      glow.addColorStop(0.3, SUN_COLORS[i] + 'aa');
+      glow.addColorStop(1, SUN_COLORS[i] + '00');
+      ctx.fillStyle = glow;
+      ctx.beginPath(); ctx.arc(px, py, rad * 3, 0, 6.283); ctx.fill();
+      ctx.fillStyle = '#fffbe6';
+      ctx.beginPath(); ctx.arc(px, py, rad * 0.75, 0, 6.283); ctx.fill();
+    });
+
+    // planet
+    const dead = mode === 'dead';
+    const dry = civ && civ.dry && !dead;
+    ctx.fillStyle = dead ? '#3a3350' : dry ? '#e3cc96' : '#3d8bd9';
+    ctx.strokeStyle = '#07040f'; ctx.lineWidth = 3 * dpr;
+    ctx.beginPath(); ctx.arc(cx, cy, 20 * dpr, 0, 6.283); ctx.fill(); ctx.stroke();
+    const near = temp > XH - 0.18 || temp < XC + 0.14;
+    let face = '😊';
+    if (dead) face = '💀';
+    else if (mode === 'launching') face = '🚀';
+    else if (dry) face = '📜';
+    else if (near) face = '😱';
+    else if (z === 'hot') face = '🥵';
+    else if (z === 'cold') face = '🥶';
+    else if (civ && civ.pop < 40) face = '😵';
+    ctx.font = `${24 * dpr}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(face, cx, cy + 1 * dpr);
+
+    // floating +1s
+    ctx.font = `${20 * dpr}px "Luckiest Guy", Impact, sans-serif`;
+    ctx.lineWidth = 5 * dpr; ctx.lineJoin = 'round';
+    for (const f of floats) {
+      f.life -= dt; f.y += f.vy * dt;
+      if (f.life <= 0) continue;
+      ctx.globalAlpha = Math.min(1, f.life * 2);
+      const fx = cx + f.x * dpr, fy = cy + f.y * dpr;
+      ctx.strokeStyle = '#07040f'; ctx.strokeText(f.text, fx, fy);
+      ctx.fillStyle = '#ffd84a'; ctx.fillText(f.text, fx, fy);
+    }
+    ctx.globalAlpha = 1;
+    floats = floats.filter(f => f.life > 0);
+  }
+
+  let last = performance.now(), hudAcc = 0;
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    update(dt);
+    draw(dt);
+    hudAcc += dt;
+    if (hudAcc > 0.1) { hudAcc = 0; renderHud(); }
+    requestAnimationFrame(frame);
+  }
+
+  // ---------- Input ----------
+  $('tapBtn').addEventListener('pointerdown', e => { e.preventDefault(); tap(); });
+  $('dryBtn').addEventListener('click', dehydrate);
+  $('launchBtn').addEventListener('click', launch);
+  $('startBtn').addEventListener('click', startCiv);
+  $('nextBtn').addEventListener('click', () => {
+    if (pendingEnding) { const k = pendingEnding; pendingEnding = null; showEnding(k); }
+    else startCiv();
+  });
+  $('endBtn').addEventListener('click', startCiv);
+  $('archiveBtn').addEventListener('click', openArchive);
+  $('deathArchiveBtn').addEventListener('click', openArchive);
+  $('archiveClose').addEventListener('click', () => { $('archiveScreen').hidden = true; });
+  $('resetBtn').addEventListener('click', e => {
+    const b = e.currentTarget;
+    if (!b.dataset.armed) { b.dataset.armed = '1'; b.textContent = 'Really? Tap again to erase'; return; }
+    const muted = meta.muted;
+    meta = freshMeta(); meta.muted = muted; saveMeta();
+    openArchive();
+  });
+  $('muteBtn').addEventListener('click', () => {
+    meta.muted = !meta.muted; saveMeta();
+    $('muteBtn').textContent = meta.muted ? '🔇' : '🔊';
+  });
+  $('muteBtn').textContent = meta.muted ? '🔇' : '🔊';
+
+  document.addEventListener('keydown', e => {
+    if (e.repeat) return;
+    const overlayOpen = !$('archiveScreen').hidden;
+    if (e.code === 'Space' || e.code === 'Enter') {
+      if (mode === 'play' && !overlayOpen) { e.preventDefault(); tap(); }
+    } else if (e.code === 'KeyD') {
+      if (!overlayOpen) dehydrate();
+    } else if (e.code === 'Escape') {
+      $('archiveScreen').hidden = true;
+    }
+  });
+  window.addEventListener('pagehide', saveMeta);
+
+  if (meta.count > 0) {
+    $('titleStats').textContent = `Civilizations destroyed so far: ${fmt(meta.count)} · Lifetime taps: ${fmt(meta.totalTaps)}. This time will be different.`;
+    $('startBtn').textContent = `Start Civilization #${meta.count + 1}`;
+  }
+  renderHud();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
